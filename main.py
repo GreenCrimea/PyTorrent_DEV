@@ -5,9 +5,12 @@ import asyncio
 import aiohttp
 import logging
 import socket
+import os
 from urllib.parse import urlencode
-from struct import unpack
-from collections import OrderedDict
+from asyncio import Queue
+from hashlib import sha1
+from struct import unpack, pack
+from collections import OrderedDict, namedtuple, defaultdict
 
 #software version
 VERSION = '0.0.1'
@@ -19,6 +22,9 @@ TOKEN_DICT = b'd'
 TOKEN_END = b'e'
 TOKEN_STRING_SEPARATOR = b':'
 
+#max peers
+MAX_PEER_CONNECTIONS = 40
+
 
 
 class Client:
@@ -27,6 +33,113 @@ class Client:
     '''
 
     def __init__(self, torrent):
+        self.tracker = Tracker(torrent)
+        self.available_peers = Queue()
+        self.peers = []
+        self.piece_manager = None #####TODO add class
+        self.abort = False
+
+    async def start(self):
+        '''
+        start downloading the torrent
+        '''
+        pass
+
+
+
+class PieceManager:
+    '''
+    keeps track of all the available pieces from the currently
+    connected peers, as well as all pieces available for others
+    '''
+    #####TODO add smarter piece request algorithm
+    def __init__(self, torrent):
+        self.torrent = torrent
+        self.peers = {}
+        self.pending_blocks = []
+        self.missing_pieces = []
+        self.ongoing_pieces = []
+        self.have_pieces = []
+        self.max_pending_time = 300 * 1000 #5min
+        self.missing_pieces = None #self._initiate_pieces()
+        self.total_pieces = len(torrent.pieces)
+        self.fd = os.open(self.torrent.output_file, os.O_RDWR | os.O_CREAT)
+
+    def _initiate_pieces(self): #-> [Piece]:
+        pass
+
+
+
+class PeerMessage:
+    '''
+    a message between peers.
+
+    takes the form of:
+        <length prefix><message ID><payload>
+
+    length prefix is a 4 byte big endian value, ID is a single 
+    decimal byte, and payload depends on the message type
+    ''' 
+    Choke = 0
+    Unchoke = 1
+    Interested = 2
+    NotInterested = 3
+    Have = 4
+    BitField = 5
+    Request = 6
+    Piece = 7
+    Cancel = 8
+    Port = 9
+    Handshake = None
+    KeepAlive = None
+
+    def encode(self) -> bytes:
+        '''
+        Encode this object to raw bytes representing the message
+        '''
+        pass
+
+    @classmethod
+    def decode(cls, data: bytes):
+        '''
+        Decodes the message into a object inst 
+        '''
+        pass
+
+
+
+class Piece(PeerMessage):
+    '''
+    called 'piece' to match spec, but really represents a 'block'.
+
+    Message format:
+        <length prefix><message ID><index><begin><block>
+    '''
+    length = 9
+
+    def __init__(self, index: int, begin: int, block: bytes):
+        '''
+        create a piece message
+
+        :param index: The zero based piece index
+        :param begin: The zero based offset within a piece
+        :param block: The block data
+        '''
+        self.index = index
+        self.begin = begin
+        self.block = block
+
+    def encode(self):
+        message_length = Piece.length + len(self.block)
+        return pack('>IbII' + str(len(self.block)) + 's',
+                    message_length,
+                    PeerMessage.Piece,
+                    self.index,
+                    self.begin,
+                    self.block)
+
+    @classmethod
+    def decode(cls, data: bytes):
         pass
 
 
@@ -73,7 +186,7 @@ class Tracker:
                 raise ConnectionError(f'failed to connect to tracker: status code {response.status}')
             data = await response.read()
             self.raise_hidden_error(data)
-            return TrackerResponse() #####TODO add bencoding here 
+            return TrackerResponse(Decoder(data).decode())
             
     def raise_hidden_error(self, tracker_response):
         '''
