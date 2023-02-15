@@ -4,7 +4,7 @@
 from hashlib import sha1
 from collections import namedtuple
 
-from . import bencoding
+import bencoding
 
 
 

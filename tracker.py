@@ -9,7 +9,7 @@ import socket
 from struct import unpack
 from urllib.parse import urlencode
 
-from . import bencoding
+import bencoding
 
 
 

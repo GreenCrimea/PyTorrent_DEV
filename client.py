@@ -10,8 +10,8 @@ from asyncio import Queue
 from collections import namedtuple, defaultdict
 from hashlib import sha1
 
-from .protocol import PeerConnection, REQUEST_SIZE
-from .tracker import Tracker
+from protocol import PeerConnection, REQUEST_SIZE
+from tracker import Tracker
 
 
 
