@@ -6,6 +6,60 @@ from concurrent.futures import CancelledError
 
 
 
+REQUEST_SIZE = 2**14
+
+
+
+class ProtocolError(BaseException):
+    pass
+
+
+
+class PeerConnection:
+    '''
+    a connection used to download and upload pieces
+
+    will take a peer from the queue and attemnt to open connection and handshake.
+    after handshake this will be choked, and an interested message is sent.
+    after interested message is sent this is unchoked, and can request pieces.
+    '''
+    def __init__(self, queue: Queue, info_hash, peer_id, piece_manager, on_block_cb=None):
+        '''
+        creates a peer connection and adds it to the asyncio event loop.
+
+        :param queue: The async Queue containing available peers
+        :param info_hash: The SHA1 hash for the meta-data's info
+        :param peer_id: Our peer ID used to to identify ourselves
+        :param piece_manager: The manager responsible to determine which pieces
+        to request
+        :param on_block_cb: The callback function to call when a block is
+        received from the remote peer
+        '''
+        self.my_state = []
+        self.peer_state = []
+        self.queue = queue
+        self.info_hash = info_hash
+        self.peer_id = peer_id
+        self.remote_id = None
+        self.writer = None
+        self.reader = None
+        self.piece_manager = piece_manager
+        self.on_block_cb = on_block_cb
+        self.future = asyncio.ensure_future(self._start())
+
+    async def _start(self):
+        while 'stopped' not in self.my_state:
+            ip, port = await self.queue.get()
+            logging.info(f'assigned peer with: {ip}')
+
+            try:
+                self.reader, self.writer = await asyncio.open_connection(ip, port)
+                logging.info(f'connected to peer: {ip}')
+
+                buffer = await self._handshake()
+
+                #####TODO support for sending data
+
 
 
 class PeerMessage:
@@ -43,6 +97,7 @@ class PeerMessage:
         Decodes the message into a object inst 
         '''
         pass
+
 
 
 class Piece(PeerMessage):
