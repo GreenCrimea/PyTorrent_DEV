@@ -27,7 +27,7 @@ class Torrent:
             self.info_hash = sha1(info).digest()
             self._identify_files()
 
-    def _indentify_files(self):
+    def _identify_files(self):
         '''
         identifies the files in the .torrent
         '''
@@ -60,7 +60,7 @@ class Torrent:
         '''
         length in bytes of each piece
         '''
-        return self.meta_info[b'info'][b'piece_length']
+        return self.meta_info[b'info'][b'piece length']
 
     @property
     def total_size(self) -> int:

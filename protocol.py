@@ -192,7 +192,7 @@ class PeerStreamIterator:
         self.reader = reader
         self.buffer = initial if initial else b''
 
-    async def __aiter__(self):
+    def __aiter__(self):
         return self
 
     async def __anext__(self):
@@ -425,7 +425,7 @@ class BitField(PeerMessage):
     def decode(cls, data: bytes):
         message_length = unpack('>I', data[:4])[0]
         logging.debug(f'decoding bitfield of length {message_length}')
-        parts = unpack('>Ib' + str(message_length - 1) + s, data)
+        parts = unpack('>Ib' + str(message_length - 1) + 's', data)
         return cls(parts[2])
 
     def __str__(self):

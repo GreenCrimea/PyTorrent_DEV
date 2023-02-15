@@ -5,31 +5,42 @@ from collections import OrderedDict
 
 
 
-#consts for decoding bencoded bytes
-TOKEN_INT = b'i'
+# Indicates start of integers
+TOKEN_INTEGER = b'i'
+
+# Indicates start of list
 TOKEN_LIST = b'l'
+
+# Indicates start of dict
 TOKEN_DICT = b'd'
+
+# Indicate end of lists, dicts and integer values
 TOKEN_END = b'e'
+
+# Delimits string length from string data
 TOKEN_STRING_SEPARATOR = b':'
 
 
 
 class Decoder:
-    '''
-    decodes bencoded bytes
-    '''
+    """
+    Decodes a bencoded sequence of bytes.
+    """
     def __init__(self, data: bytes):
+        if not isinstance(data, bytes):
+            raise TypeError('Argument "data" must be of type bytes')
         self._data = data
         self._index = 0
 
     def decode(self):
-        '''
-        decodes the data and returns a matching python object
-        '''
+        """
+        Decodes the bencoded data and return the matching python object.
+        :return A python object representing the bencoded data
+        """
         c = self._peek()
         if c is None:
             raise EOFError('Unexpected end-of-file')
-        elif c == TOKEN_INT:
+        elif c == TOKEN_INTEGER:
             self._consume()  # The token
             return self._decode_int()
         elif c == TOKEN_LIST:
@@ -47,25 +58,26 @@ class Decoder:
                 str(self._index)))
 
     def _peek(self):
-        '''
-        return the next char, or None
-        '''
+        """
+        Return the next character from the bencoded data or None
+        """
         if self._index + 1 >= len(self._data):
             return None
-        return self._data[self._index + 1]
+        return self._data[self._index:self._index + 1]
 
     def _consume(self) -> bytes:
-        '''
-        read and consume the next char
-        '''
+        """
+        Read (and therefore consume) the next character from the data
+        """
         self._index += 1
 
     def _read(self, length: int) -> bytes:
-        '''
-        read the 'length' number of bytes and return result
-        '''
+        """
+        Read the `length` number of bytes from data and return the result
+        """
         if self._index + length > len(self._data):
-            raise IndexError(f'Cannot read {str(length)} bytes from current position {str(self._index)}')
+            raise IndexError('Cannot read {0} bytes from current position {1}'
+                             .format(str(length), str(self._index)))
         res = self._data[self._index:self._index+length]
         self._index += length
         return res
@@ -81,7 +93,8 @@ class Decoder:
             self._index = occurrence + 1
             return result
         except ValueError:
-            raise RuntimeError(f'Unable to find token {str(token)}')
+            raise RuntimeError('Unable to find token {0}'.format(
+                str(token)))
 
     def _decode_int(self):
         return int(self._read_until(TOKEN_END))
@@ -176,5 +189,4 @@ class Encoder:
             else:
                 raise RuntimeError('Bad dict')
         result += b'e'
-        return 
-
+        return result

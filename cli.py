@@ -36,3 +36,7 @@ def main():
         loop.run_until_complete(task)
     except CancelledError:
         logging.warning('event loop cancelled')
+
+
+if __name__ == '__main__':
+    main()
