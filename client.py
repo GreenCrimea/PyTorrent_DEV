@@ -28,7 +28,7 @@ class Client:
         self.tracker = Tracker(torrent)
         self.available_peers = Queue()
         self.peers = []
-        self.piece_manager = None #####TODO add class
+        self.piece_manager = PieceManager(torrent)
         self.abort = False
 
     async def start(self):
@@ -81,7 +81,7 @@ class Client:
         self.piece_manager.close()
         self.tracker.close()
 
-    def on_block_retrieved(self, peer_id, piece_index, block_offset, data):
+    def _on_block_retrieved(self, peer_id, piece_index, block_offset, data):
         '''
         callback called by peer connection when a block is retrieved
         '''
@@ -154,7 +154,7 @@ class Piece:
         checks if all blocks are recieved (but not hashed)
         '''
         blocks = [b for b in self.blocks if b.status is not Block.Retrieved]
-        return len(blocks) is 0
+        return len(blocks) == 0
 
     def is_hash_matching(self):
         '''
@@ -183,7 +183,6 @@ class PieceManager:
     keeps track of all the available pieces from the currently
     connected peers, as well as all pieces available for others
     '''
-    #####TODO add smarter piece request algorithm
     def __init__(self, torrent):
         self.torrent = torrent
         self.peers = {}
@@ -191,12 +190,12 @@ class PieceManager:
         self.missing_pieces = []
         self.ongoing_pieces = []
         self.have_pieces = []
-        self.max_pending_time = 300 * 1000 #5min
-        self.missing_pieces = None #self._initiate_pieces()
+        self.max_pending_time = 30 * 1000
+        self.missing_pieces = self._initiate_pieces()
         self.total_pieces = len(torrent.pieces)
         self.fd = os.open(self.torrent.output_file, os.O_RDWR | os.O_CREAT)
 
-    def _initiate_pieces(self) -> list(Piece):
+    def _initiate_pieces(self):
         '''
         create list of pieces and blocks based on the num of pieces
         and size of torrent
@@ -297,7 +296,7 @@ class PieceManager:
                     return request.block
         return None
 
-    def _next_onging(self, peer_id) -> Block:
+    def _next_ongoing(self, peer_id) -> Block:
         '''
         go through the ongoing piece and request next block
         '''
