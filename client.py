@@ -15,6 +15,10 @@ from .tracker import Tracker
 
 
 
+MAX_PEER_CONNECTIONS = 40
+
+
+
 class Client:
     '''
     Client is the local peer
@@ -31,7 +35,57 @@ class Client:
         '''
         start downloading the torrent
         '''
-        pass
+        self.peers = [PeerConnection(self.available_peers,
+                                     self.tracker.torrent.info_hash,
+                                     self.tracker.peer_id,
+                                     self.piece_manager,
+                                     self._on_block_retrieved)
+                      for _ in range(MAX_PEER_CONNECTIONS)]
+        previous = None
+        interval = 30*60
+
+        while True:
+            if self.piece_manager.complete:
+                logging.info('Torrent Done')
+                break
+            if self.abort:
+                logging.info('Aborting torrent')
+                break
+
+            current = time.time()
+            if (not previous) or (previous + interval < current):
+                response = await self.tracker.connect_tracker(
+                    first=previous if previous else False,
+                    uploaded=self.piece_manager.bytes_uploaded,
+                    downloaded=self.piece_manager.bytes_downloaded
+                )
+                if response:
+                    previous = current
+                    interval = response.interval
+                    self._empty_queue()
+                    for peer in response.peers:
+                        self.available_peers.put_nowait(peer)
+            
+            else:
+                await asyncio.sleep(5)
+        self.stop()
+
+    def _empty_queue(self):
+        while not self.available_peers.empty():
+            self.available_peers.get_nowait()
+
+    def stop(self):
+        self.abort = True
+        for peer in self.peers:
+            peer.stop()
+        self.piece_manager.close()
+        self.tracker.close()
+
+    def on_block_retrieved(self, peer_id, piece_index, block_offset, data):
+        '''
+        callback called by peer connection when a block is retrieved
+        '''
+        self.piece_manager.block_recieved(peer_id=peer_id, piece_index=piece_index, block_offset=block_offset, data=data)
 
 
 

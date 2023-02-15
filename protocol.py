@@ -464,6 +464,82 @@ class NotInterested(PeerMessage):
 
 
 
+class Choke(PeerMessage):
+    '''
+    tells peer to stop sending request messages until unchoked.
+
+    message format:
+        <len=0001><id=0>
+    '''
+
+    def __str__(self):
+        return 'Choke'
+
+
+
+class Unchoke(PeerMessage):
+    '''
+    tells peer they are able to request pieces
+
+    message format:
+        <len=0001><id=1>
+    '''
+
+    def __str__(self):
+        return 'Unchoke'
+
+
+
+class Have(PeerMessage):
+    '''
+    represents a piece successfully downloaded
+
+    message format:
+        <len=0005><id=4><piece index>
+    '''
+    def __init__(self, index: int):
+        self.index = index
+
+    def encode(self):
+        return pack('>IbI', 5, PeerMessage.Have, self.index)
+
+    @classmethod
+    def decode(cls, data: bytes):
+        logging.debug(f'decoding have of len {len(data)}')
+        index = unpack('>IbI', data)[2]
+        return cls(index)
+
+    def __str__(self):
+        return 'Have'
+
+
+
+class Request(PeerMessage):
+    '''
+    used to request a block of a piece (partial piece)
+
+    Message format:
+        <len=0013><id=6><index><begin><length>
+    '''
+    def __init__(self, index: int, begin: int, length: int = REQUEST_SIZE):
+        self.index = index
+        self.begin = begin
+        self.length = length
+
+    def encode(self):
+        return pack('>IbIII', 13, PeerMessage.Request, self.index, self.begin, self.length)
+
+    @classmethod
+    def decode(cls, data: bytes):
+        logging.debug(f'decoding request of len {len(data)}')
+        parts = unpack('>IbIII', data)
+        return cls(parts[2], parts[3], parts[4])
+
+    def __str__(self):
+        return 'Request'
+
+
+
 class Piece(PeerMessage):
     '''
     called 'piece' to match spec, but really represents a 'block'.
@@ -504,3 +580,29 @@ class Piece(PeerMessage):
 
     def __str__(self):
         return 'Piece'
+
+
+
+class Cancel(PeerMessage):
+    '''
+    cancel a previously requested block
+
+    Message format:
+         <len=0013><id=8><index><begin><length>
+    '''
+    def __init__(self, index: int, begin: int, length: int = REQUEST_SIZE):
+        self.index = index
+        self.begin = begin
+        self.length = length
+
+    def encode(self):
+        return pack('>IbIII', 13, PeerMessage.Cancel, self.index, self.begin, self.length)
+
+    @classmethod
+    def decode(cls, data: bytes):
+        logging.debug(f'decoding cancel of len {len(data)}')
+        parts = unpack('>IbIII', data)
+        return cls(parts[2], parts[3], parts[4])
+
+    def __str__(self):
+        return 'Cancel'
