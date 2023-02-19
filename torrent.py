@@ -12,7 +12,7 @@ VERSION = '0.0.1'
 
 
 
-class Torrent(object):
+class Torrent:
     '''
     base class for the decoded torrent file
     '''
