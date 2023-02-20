@@ -1,7 +1,7 @@
 import piece
 import bitstring
 import logging
-from pubsub import pub
+from pubsub import publish
 
 
 
@@ -22,8 +22,8 @@ class PiecesManager:
             id_piece = file['idPiece']
             self.pieces[id_piece].files.append(file)
 
-        pub.subscribe(self.recieve_block_piece, 'PiecesManager.Piece')
-        pub.subscribe(self.update_bitfield, 'PiecesManager.PieceCompleted')
+        publish.subscribe(self.recieve_block_piece, 'PiecesManager.Piece')
+        publish.subscribe(self.update_bitfield, 'PiecesManager.PieceCompleted')
 
 
     def update_bitfield(self, piece_index):
