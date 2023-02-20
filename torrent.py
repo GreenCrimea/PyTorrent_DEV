@@ -59,7 +59,7 @@ class Torrent:
         determine if this is a single or multifile torrent,
         and if it is a multifile, create the directory structure
         '''
-        root = self.torrent_file['info']['nane']
+        root = self.torrent_file['info']['name']
 
         if 'files' in self.torrent_file['info']:
             if not os.path.exists(root):
