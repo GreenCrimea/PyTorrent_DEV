@@ -2,7 +2,7 @@ import time
 import socket
 import struct
 import bitstring
-from pubsub import publish
+from pubsub import pub
 import logging
 
 import message
@@ -132,11 +132,11 @@ class Peer:
     def handle_request(self, request):
         logging.debug(f'handle_request - {self.ip}')
         if self.is_interested() and self.is_unchoked():
-            publish.sendMessage('PieceManager.PeerRequestsPiece', request=request, peer=self)
+            pub.sendMessage('PieceManager.PeerRequestsPiece', request=request, peer=self)
 
 
     def handle_piece(self, message):
-        publish.sendMessage('PiecesManager.Piece', piece=(message.piece_index, message.block_offset, message.block))
+        pub.sendMessage('PiecesManager.Piece', piece=(message.piece_index, message.block_offset, message.block))
 
 
     def handle_cancel(self):
