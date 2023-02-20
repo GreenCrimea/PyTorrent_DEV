@@ -95,4 +95,37 @@ class Piece:
     def _write_piece_on_disk(self):
         for file in self.files:
             path_file = file['path']
-            
+            file_offset = file['fileOffset']
+            piece_offset = file['pieceOffset']
+            length = file['length']
+
+            try:
+                f = open(path_file, 'r+b')
+            except IOError:
+                f = open(path_file, 'wb')
+            except Exception:
+                logging.exception('cant write to file')
+                return
+
+            f.seek(file_offset)
+            f.write(self.raw_data[piece_offset:piece_offset + length])
+            f.close()
+
+
+    def _merge_blocks(self):
+        buf = b''
+        for block in self.blocks:
+            buf += block.data
+
+        return buf
+
+
+    def _valid_blocks(self, piece_raw_data):
+        hashed_piece_raw_data = hashlib.sha1(piece_raw_data).digest()
+
+        if hashed_piece_raw_data == self.piece_hash:
+            return True
+
+        logging.warning('piece hash error')
+        logging.debug(f'{hashed_piece_raw_data} : {self.piece_hash}')
+        return False
