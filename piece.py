@@ -2,7 +2,7 @@ import hashlib
 import math
 import time
 import logging
-from pubsub import pub
+from pubsub import publish
 from block import Block, BLOCK_SIZE, State
 
 
@@ -74,7 +74,7 @@ class Piece:
         self.is_full = True
         self.raw_data = data
         self._write_piece_on_disk()
-        pub.sendMessage('PiecesManager.PieceCompleted', piece_index=self.piece_index)
+        publish.sendMessage('PiecesManager.PieceCompleted', piece_index=self.piece_index)
         return True
 
 

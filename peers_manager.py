@@ -1,7 +1,7 @@
 import time
 import select
 from threading import Thread
-from pubsub import pub
+from pubsub import publish
 import rarest_piece
 import logging
 import message
@@ -26,8 +26,8 @@ class PeersManager(Thread):
         self.pieces_by_peer = [[0, []] for _ in range(pieces_manager.number_of_pieces)]
         self.is_active = True
 
-        pub.subscribe(self.peer_requests_piece, 'PeerManager.PeerRequestsPiece')
-        pub.subscribe(self.peer_bitfield, 'PeerManager.updatePeersBitfield')
+        publish.subscribe(self.peer_requests_piece, 'PeerManager.PeerRequestsPiece')
+        publish.subscribe(self.peer_bitfield, 'PeerManager.updatePeersBitfield')
 
     
     def peer_requests_piece(self, request=None, peer=None):
