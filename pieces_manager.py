@@ -4,12 +4,7 @@ import logging
 from pubsub import pub
 
 
-
-class PiecesManager:
-    '''
-    x
-    '''
-
+class PiecesManager(object):
     def __init__(self, torrent):
         self.torrent = torrent
         self.number_of_pieces = int(torrent.number_of_pieces)
@@ -22,16 +17,16 @@ class PiecesManager:
             id_piece = file['idPiece']
             self.pieces[id_piece].files.append(file)
 
-        pub.subscribe(self.recieve_block_piece, 'PiecesManager.Piece')
+        # events
+        pub.subscribe(self.receive_block_piece, 'PiecesManager.Piece')
         pub.subscribe(self.update_bitfield, 'PiecesManager.PieceCompleted')
-
 
     def update_bitfield(self, piece_index):
         self.bitfield[piece_index] = 1
 
-
-    def recieve_block_piece(self, piece):
+    def receive_block_piece(self, piece):
         piece_index, piece_offset, piece_data = piece
+
         if self.pieces[piece_index].is_full:
             return
 
@@ -39,7 +34,7 @@ class PiecesManager:
 
         if self.pieces[piece_index].are_all_blocks_full():
             if self.pieces[piece_index].set_to_full():
-                self.complete_pieces += 1
+                self.complete_pieces +=1
 
 
     def get_block(self, piece_index, block_offset, block_length):
@@ -49,15 +44,15 @@ class PiecesManager:
                     return piece.get_block(block_offset, block_length)
                 else:
                     break
-        return None
 
+        return None
 
     def all_pieces_completed(self):
         for piece in self.pieces:
             if not piece.is_full:
                 return False
-        return True
 
+        return True
 
     def _generate_pieces(self):
         pieces = []
@@ -72,9 +67,8 @@ class PiecesManager:
                 pieces.append(piece.Piece(i, piece_length, self.torrent.pieces[start:end]))
             else:
                 pieces.append(piece.Piece(i, self.torrent.piece_length, self.torrent.pieces[start:end]))
-        
-        return pieces
 
+        return pieces
 
     def _load_files(self):
         files = []
@@ -82,7 +76,7 @@ class PiecesManager:
         piece_size_used = 0
 
         for f in self.torrent.file_names:
-            current_size_file = f['length']
+            current_size_file = f["length"]
             file_offset = 0
 
             while current_size_file > 0:
@@ -90,12 +84,12 @@ class PiecesManager:
                 piece_size = self.pieces[id_piece].piece_size - piece_size_used
 
                 if current_size_file - piece_size < 0:
-                    file = {'length': current_size_file,
-                            'idPiece': id_piece,
-                            'fileOffset': file_offset,
-                            'pieceOffset': piece_size_used,
-                            'path': f['path']}
-
+                    file = {"length": current_size_file,
+                            "idPiece": id_piece,
+                            "fileOffset": file_offset,
+                            "pieceOffset": piece_size_used,
+                            "path": f["path"]
+                            }
                     piece_offset += current_size_file
                     file_offset += current_size_file
                     piece_size_used += current_size_file
@@ -103,11 +97,12 @@ class PiecesManager:
 
                 else:
                     current_size_file -= piece_size
-                    file = {'length': piece_size,
-                            'idPiece': id_piece,
-                            'fileOffset': file_offset,
-                            'pieceOffset': piece_size_used,
-                            'path': f['path']}
+                    file = {"length": piece_size,
+                            "idPiece": id_piece,
+                            "fileOffset": file_offset,
+                            "pieceOffset": piece_size_used,
+                            "path": f["path"]
+                            }
                     piece_offset += piece_size
                     file_offset += piece_size
                     piece_size_used = 0

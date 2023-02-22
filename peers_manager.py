@@ -5,65 +5,58 @@ from pubsub import pub
 import rarest_piece
 import logging
 import message
-import peer 
+import peer
 import errno
 import socket
 import random
 
 
-
 class PeersManager(Thread):
-    '''
-    x
-    '''
-
     def __init__(self, torrent, pieces_manager):
         Thread.__init__(self)
         self.peers = []
         self.torrent = torrent
         self.pieces_manager = pieces_manager
-        self.rarest_pieces = rarest_piece.RarestPiece(pieces_manager)
+        self.rarest_pieces = rarest_piece.RarestPieces(pieces_manager)
         self.pieces_by_peer = [[0, []] for _ in range(pieces_manager.number_of_pieces)]
         self.is_active = True
 
-        pub.subscribe(self.peer_requests_piece, 'PeerManager.PeerRequestsPiece')
-        pub.subscribe(self.peer_bitfield, 'PeerManager.updatePeersBitfield')
+        # Events
+        pub.subscribe(self.peer_requests_piece, 'PeersManager.PeerRequestsPiece')
+        pub.subscribe(self.peers_bitfield, 'PeersManager.updatePeersBitfield')
 
-    
     def peer_requests_piece(self, request=None, peer=None):
         if not request or not peer:
-            logging.error('empty request/peer message')
+            logging.error("empty request/peer message")
 
         piece_index, block_offset, block_length = request.piece_index, request.block_offset, request.block_length
-        block = self.pieces_manager.get_blocks(piece_index, block_offset, block_length)
-        if block:
-            piece = message.Piece(piece_index, block_offset, block_length).to_bytes()
-            peer.send_to_peer(piece)
-            logging.info(f'sent piece {request.piece_index} to peer {peer.ip}')
 
+        block = self.pieces_manager.get_block(piece_index, block_offset, block_length)
+        if block:
+            piece = message.Piece(piece_index, block_offset, block_length, block).to_bytes()
+            peer.send_to_peer(piece)
+            logging.info("Sent piece index {} to peer : {}".format(request.piece_index, peer.ip))
 
     def peers_bitfield(self, bitfield=None):
         for i in range(len(self.pieces_by_peer)):
             if bitfield[i] == 1 and peer not in self.pieces_by_peer[i][1] and self.pieces_by_peer[i][0]:
                 self.pieces_by_peer[i][1].append(peer)
                 self.pieces_by_peer[i][0] = len(self.pieces_by_peer[i][1])
-                
 
     def get_random_peer_having_piece(self, index):
         ready_peers = []
+
         for peer in self.peers:
             if peer.is_eligible() and peer.is_unchoked() and peer.am_interested() and peer.has_piece(index):
                 ready_peers.append(peer)
 
         return random.choice(ready_peers) if ready_peers else None
 
-
     def has_unchoked_peers(self):
         for peer in self.peers:
             if peer.is_unchoked():
                 return True
         return False
-
 
     def unchoked_peers_count(self):
         cpt = 0
@@ -82,25 +75,23 @@ class PeersManager(Thread):
                 buff = sock.recv(4096)
                 if len(buff) <= 0:
                     break
-                data += buff
 
+                data += buff
             except socket.error as e:
                 err = e.args[0]
                 if err != errno.EAGAIN or err != errno.EWOULDBLOCK:
-                    logging.debug(f'wrong errno {err}')
+                    logging.debug("Wrong errno {}".format(err))
                 break
-
             except Exception:
-                logging.exception('recv failed')
+                logging.exception("Recv failed")
                 break
 
         return data
 
-
     def run(self):
         while self.is_active:
             read = [peer.socket for peer in self.peers]
-            read_list, _, __ = select.select(read, [], [], 1)
+            read_list, _, _ = select.select(read, [], [], 1)
 
             for socket in read_list:
                 peer = self.get_peer_by_socket(socket)
@@ -111,7 +102,7 @@ class PeersManager(Thread):
                 try:
                     payload = self._read_from_socket(socket)
                 except Exception as e:
-                    logging.error(f'recv failed - {e.__str__()}')
+                    logging.error("Recv failed %s" % e.__str__())
                     self.remove_peer(peer)
                     continue
 
@@ -120,45 +111,44 @@ class PeersManager(Thread):
                 for message in peer.get_messages():
                     self._process_new_message(message, peer)
 
-
     def _do_handshake(self, peer):
         try:
             handshake = message.Handshake(self.torrent.info_hash)
             peer.send_to_peer(handshake.to_bytes())
-            logging.info(f'new peer added: {peer.ip}')
+            logging.info("new peer added : %s" % peer.ip)
             return True
-        
+
         except Exception:
-            logging.exception('error with handshake message')
+            logging.exception("Error when sending Handshake message")
 
         return False
-
 
     def add_peers(self, peers):
         for peer in peers:
             if self._do_handshake(peer):
                 self.peers.append(peer)
             else:
-                print('error "_do_handshake"')
-
+                print("Error _do_handshake")
 
     def remove_peer(self, peer):
         if peer in self.peers:
-            try: 
+            try:
                 peer.socket.close()
             except Exception:
-                logging.exception('')
+                logging.exception("")
 
             self.peers.remove(peer)
 
+        #for rarest_piece in self.rarest_pieces.rarest_pieces:
+        #    if peer in rarest_piece["peers"]:
+        #        rarest_piece["peers"].remove(peer)
 
     def get_peer_by_socket(self, socket):
         for peer in self.peers:
             if socket == peer.socket:
                 return peer
-        
-        raise Exception('peer not in peer list')
 
+        raise Exception("Peer not present in peer_list")
 
     def _process_new_message(self, new_message: message.Message, peer: peer.Peer):
         if isinstance(new_message, message.Handshake) or isinstance(new_message, message.KeepAlive):
