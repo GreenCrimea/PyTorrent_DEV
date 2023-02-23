@@ -44,16 +44,16 @@ class Hypervisor:
 
     def start(self):
         length = self.download.torrent.total_length
-        if length > 1000:
+        if 1000000 > length:
             self.attributes['size_magnitude'] = [1000, 'KB']
-        elif length > 1000000:
+        elif 1000000000 > length > 1000000:
             self.attributes['size_magnitude'] = [1000000, 'MB']
         elif length > 1000000000:
             self.attributes['size_magnitude'] = [1000000000, 'GB']
 
         self.attributes['size'] = length / self.attributes['size_magnitude'][0]
         self.attributes['remaining'] = length / self.attributes['size_magnitude'][0]
-        self.attributes['downloaded'] = 0.0
+        self.attributes['downloaded'] = ''
         self.attributes['time_began'] = time.time()
         self.attributes['time_elapsed'] = 0.0
         self.attributes['percentage_complete'] = 0.0
@@ -67,14 +67,26 @@ class Hypervisor:
         while self.attributes['status'] != 'terminated':
             self.download.run(self.attributes['status'])
 
-            #
+            self.downloaded_stats()
+            print(f"DOWNLOADED = {self.attributes['downloaded']}")
             
             if not self.download.pieces_manager.all_pieces_completed():
                 self.attributes['status'] == 'running'
             else:
                 self.attributes['status'] == 'seeding'
 
-    def downloaded_stats(self):
-        amount = (self.download.pieces_manager.complete_pieces / self.download.pieces_manager.number_of_pieces) * self.download.torrent.piece_length
+            time.sleep(0.1)
 
+    def downloaded_stats(self):
+        amount = (self.download.pieces_manager.complete_pieces / self.download.pieces_manager.number_of_pieces) \
+                  * self.download.torrent.piece_length
+        if 1000000 > amount:
+            self.attributes['downloaded'] = f'{amount / 1000} KB'
+        elif 1000000000 < amount < 1000000:
+            self.attributes['downloaded'] = f'{amount / 1000000} MB'
+        elif 1000000000 < amount:
+            self.attributes['downloaded'] = f'{amount / 1000000000} GB'
+
+    def calculate_speed(self):
+        pass
         
