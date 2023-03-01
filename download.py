@@ -35,7 +35,7 @@ class Run(object):
             self.peers_dict = self.tracker.get_peers_from_trackers()
             self.peers_manager.add_peers(self.peers_dict.values())
 
-        if status == 'running':
+        elif status == 'running':
             if not self.peers_manager.has_unchoked_peers():
                 logging.info("No unchocked peers")
             else:
